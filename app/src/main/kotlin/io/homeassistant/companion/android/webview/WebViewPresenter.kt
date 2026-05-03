@@ -9,6 +9,7 @@ import io.homeassistant.companion.android.common.util.GestureDirection
 import io.homeassistant.companion.android.database.server.ServerConnectionInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
+import kotlin.time.Duration
 
 interface WebViewPresenter {
 
@@ -48,6 +49,7 @@ interface WebViewPresenter {
 
     suspend fun isAutoPlayVideoEnabled(): Boolean
     suspend fun isAlwaysShowFirstViewOnAppStartEnabled(): Boolean
+    suspend fun getShowFirstViewOnAppStartAfterSeconds(): Long?
 
     fun onExternalBusMessage(message: JsonObject)
 

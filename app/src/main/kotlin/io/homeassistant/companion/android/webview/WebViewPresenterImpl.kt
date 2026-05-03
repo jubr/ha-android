@@ -431,6 +431,10 @@ class WebViewPresenterImpl @Inject constructor(
         return prefsRepository.isAlwaysShowFirstViewOnAppStartEnabled()
     }
 
+    override suspend fun getShowFirstViewOnAppStartAfterSeconds(): Long? {
+        return prefsRepository.getShowFirstViewOnAppStartDelaySeconds()
+    }
+
     override fun onExternalBusMessage(message: JsonObject) {
         mainScope.launch {
             externalBusRepository.received(message)

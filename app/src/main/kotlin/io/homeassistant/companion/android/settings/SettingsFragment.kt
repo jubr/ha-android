@@ -8,7 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.widget.NumberPicker
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
@@ -59,6 +61,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -193,6 +196,8 @@ class SettingsFragment(
             }.toTypedArray()
             it.entryValues = percentages.map { pct -> pct.toString() }.toTypedArray()
         }
+
+        setupShowFirstViewAfterPreference()
 
         val isAutomotive = requireContext().isAutomotive()
 
@@ -449,6 +454,75 @@ class SettingsFragment(
                 }
             }
         }
+    }
+
+    private fun setupShowFirstViewAfterPreference() {
+        findPreference<ListPreference>("always_show_first_view_on_app_start")?.let { preference ->
+            preference.summaryProvider = Preference.SummaryProvider<ListPreference> { pref ->
+                getShowFirstViewAfterSummary(pref.value)
+            }
+            preference.setOnPreferenceChangeListener { _, newValue ->
+                val selectedValue = newValue as? String ?: return@setOnPreferenceChangeListener false
+                if (selectedValue == getString(R.string.first_view_after_option_value_custom)) {
+                    showCustomShowFirstViewAfterDialog(preference)
+                    false
+                } else {
+                    true
+                }
+            }
+        }
+    }
+
+    private fun getShowFirstViewAfterSummary(value: String?): String {
+        val delaySeconds = value?.toLongOrNull()
+        return when {
+            delaySeconds == null -> getString(commonR.string.always_show_first_view_on_app_start_never)
+            delaySeconds <= 0L -> getString(commonR.string.always_show_first_view_on_app_start_immediately)
+            delaySeconds % (60L * 60L) == 0L -> {
+                val hours = (delaySeconds / (60L * 60L)).toInt()
+                resources.getQuantityString(commonR.plurals.interval_hours, hours, hours)
+            }
+            else -> {
+                val minutes = (delaySeconds / 60L).toInt()
+                resources.getQuantityString(commonR.plurals.interval_minutes, minutes, minutes)
+            }
+        }
+    }
+
+    private fun showCustomShowFirstViewAfterDialog(preference: ListPreference) {
+        val currentSeconds = max(60L, preference.value.toLongOrNull() ?: 3600L)
+        val currentHours = (currentSeconds / 3600L).toInt()
+        val currentRemainingMinutes = ((currentSeconds % 3600L) / 60L).toInt()
+
+        val pickerView = View.inflate(requireContext(), R.layout.dialog_first_view_delay_picker, null)
+        val hoursPicker = pickerView.findViewById<NumberPicker>(R.id.first_view_delay_hours_picker)
+        val minutesPicker = pickerView.findViewById<NumberPicker>(R.id.first_view_delay_minutes_picker)
+
+        hoursPicker.minValue = 0
+        hoursPicker.maxValue = 24
+        hoursPicker.value = currentHours.coerceIn(0, 24)
+
+        minutesPicker.minValue = 0
+        minutesPicker.maxValue = 11
+        minutesPicker.displayedValues = (0..11).map { (it * 5).toString().padStart(2, '0') }.toTypedArray()
+        minutesPicker.value = (currentRemainingMinutes / 5).coerceIn(0, 11)
+
+        val customOptionValue = getString(R.string.first_view_after_option_value_custom)
+        val customOptionIndex = preference.findIndexOfValue(customOptionValue)
+        AlertDialog.Builder(requireContext())
+            .setTitle(commonR.string.always_show_first_view_on_app_start_custom_dialog_title)
+            .setView(pickerView)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val selectedSeconds = (hoursPicker.value * 3600L) + (minutesPicker.value * 300L)
+                val normalizedSeconds = max(60L, selectedSeconds)
+                val normalizedValue = normalizedSeconds.toString()
+                if (customOptionIndex >= 0) {
+                    preference.entryValues[customOptionIndex] = normalizedValue
+                }
+                preference.value = normalizedValue
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun updateAssistantApp() {
