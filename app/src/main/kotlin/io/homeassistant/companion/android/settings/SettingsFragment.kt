@@ -463,7 +463,7 @@ class SettingsFragment(
             }
             preference.setOnPreferenceChangeListener { _, newValue ->
                 val selectedValue = newValue as? String ?: return@setOnPreferenceChangeListener false
-                if (selectedValue == getString(commonR.string.first_view_after_option_value_custom)) {
+                if (selectedValue == getString(R.string.first_view_after_option_value_custom)) {
                     showCustomShowFirstViewAfterDialog(preference)
                     false
                 } else {
@@ -507,7 +507,7 @@ class SettingsFragment(
         minutesPicker.displayedValues = (0..11).map { (it * 5).toString().padStart(2, '0') }.toTypedArray()
         minutesPicker.value = (currentRemainingMinutes / 5).coerceIn(0, 11)
 
-        val customOptionValue = getString(commonR.string.first_view_after_option_value_custom)
+        val customOptionValue = getString(R.string.first_view_after_option_value_custom)
         val customOptionIndex = preference.findIndexOfValue(customOptionValue)
         AlertDialog.Builder(requireContext())
             .setTitle(commonR.string.always_show_first_view_on_app_start_custom_dialog_title)
