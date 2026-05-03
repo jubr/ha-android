@@ -74,11 +74,13 @@
             android:icon="@drawable/ic_baseline_video_settings_24"
             android:title="@string/autoplay_video"
             android:summary="@string/autoplay_video_summary" />
-        <SwitchPreference
+        <ListPreference
             android:key="always_show_first_view_on_app_start"
             android:icon="@drawable/ic_home_variant_outline"
             android:title="@string/always_show_first_view_on_app_start"
-            android:summary="@string/always_show_first_view_on_app_start_summary" />
+            android:summary="@string/always_show_first_view_on_app_start_summary"
+            android:entries="@array/pref_first_view_on_app_start_option_labels"
+            android:entryValues="@array/pref_first_view_on_app_start_option_values" />
         <Preference
             android:key="nfc_tags"
             android:icon="@drawable/ic_nfc"

@@ -81,6 +81,14 @@ class SettingsPresenterImpl @Inject constructor(
         }
     }
 
+    override fun getLong(key: String, defValue: Long): Long = runBlocking {
+        return@runBlocking when (key) {
+            "always_show_first_view_on_app_start" -> prefsRepository.getShowFirstViewOnAppStartDelaySeconds()
+                ?: SHOW_FIRST_VIEW_ON_APP_START_NEVER_DELAY_SECONDS
+            else -> throw IllegalArgumentException("No long found by this key: $key")
+        }
+    }
+
     override fun putBoolean(key: String, value: Boolean) {
         mainScope.launch {
             when (key) {
@@ -89,7 +97,6 @@ class SettingsPresenterImpl @Inject constructor(
                 "pinch_to_zoom" -> prefsRepository.setPinchToZoomEnabled(value)
                 "crash_reporting" -> prefsRepository.setCrashReporting(value)
                 "autoplay_video" -> prefsRepository.setAutoPlayVideo(value)
-                "always_show_first_view_on_app_start" -> prefsRepository.setAlwaysShowFirstViewOnAppStart(value)
                 "change_log_popup_enabled" -> prefsRepository.setChangeLogPopupEnabled(value)
                 "assist_voice_command_intent" ->
                     view.getPackageManager()?.setComponentEnabledSetting(
@@ -103,6 +110,21 @@ class SettingsPresenterImpl @Inject constructor(
                     )
                 "enable_ha_launcher" -> enableLauncherMode(value)
                 else -> throw IllegalArgumentException("No boolean found by this key: $key")
+            }
+        }
+    }
+
+    override fun putLong(key: String, value: Long) {
+        mainScope.launch {
+            when (key) {
+                "always_show_first_view_on_app_start" -> prefsRepository.setShowFirstViewOnAppStartDelaySeconds(
+                    delaySeconds = if (value == SHOW_FIRST_VIEW_ON_APP_START_NEVER_DELAY_SECONDS) {
+                        null
+                    } else {
+                        value
+                    },
+                )
+                else -> throw IllegalArgumentException("No long found by this key: $key")
             }
         }
     }
@@ -230,3 +252,5 @@ class SettingsPresenterImpl @Inject constructor(
         )
     }
 }
+
+private const val SHOW_FIRST_VIEW_ON_APP_START_NEVER_DELAY_SECONDS = -1L

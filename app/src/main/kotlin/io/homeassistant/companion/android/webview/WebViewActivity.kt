@@ -163,6 +163,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
 import timber.log.Timber
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @AndroidEntryPoint
 class WebViewActivity :
@@ -292,6 +296,7 @@ class WebViewActivity :
     private var failedConnection = "external"
 
     private var clearHistory = false
+    private var appBackgroundTimestamp: Instant? = null
 
     /**
      * Optional override for the internal/external URL selection logic.
@@ -1183,6 +1188,7 @@ class WebViewActivity :
 
     override fun onStart() {
         super.onStart()
+        appBackgroundTimestamp = null
         presenter.onStart(this)
     }
 
@@ -1237,6 +1243,7 @@ class WebViewActivity :
 
     override fun onStop() {
         super.onStop()
+        appBackgroundTimestamp = Clock.System.now()
         lifecycleScope.launch {
             openFirstViewOnDashboardIfNeeded()
         }
@@ -2066,20 +2073,36 @@ class WebViewActivity :
         ) {}
     }
 
+    @OptIn(ExperimentalTime::class)
     private suspend fun openFirstViewOnDashboardIfNeeded() {
-        if (presenter.isAlwaysShowFirstViewOnAppStartEnabled() &&
-            LifecycleHandler.isAppInBackground()
-        ) {
+        val showFirstViewAfterSeconds = presenter.getShowFirstViewOnAppStartAfterSeconds()
+        if (showFirstViewAfterSeconds == null || !LifecycleHandler.isAppInBackground()) {
+            return
+        }
+
+        val backgroundTimestamp = appBackgroundTimestamp
+        if (backgroundTimestamp == null) {
+            Timber.d("Skip showing first view because background timestamp is missing")
+            return
+        }
+
+        val elapsedInBackground = Clock.System.now() - backgroundTimestamp
+        if (elapsedInBackground < showFirstViewAfterSeconds.seconds) {
+            Timber.d("Skip showing first view because app was in background for $elapsedInBackground")
+            return
+        }
+
+        if (
             // Pattern matches urls which are NOT allowed to show the first view after app is started
             // This is
             // /config/* as these are the settings of HA but NOT /config/dashboard. This is just the overview of the HA settings
             // /hassio/* as these are the addons section of HA settings.
-            if (webView.url?.matches(".*://.*/(config/(?!\\bdashboard\\b)|hassio)/*.*".toRegex()) == false) {
-                Timber.d("Show first view of default dashboard.")
-                navigateToDefaultDashboard()
-            } else {
-                Timber.d("User is in the Home Assistant config. Will not show first view of the default dashboard.")
-            }
+            webView.url?.matches(".*://.*/(config/(?!\\bdashboard\\b)|hassio)/*.*".toRegex()) == false
+        ) {
+            Timber.d("Show first view of default dashboard")
+            navigateToDefaultDashboard()
+        } else {
+            Timber.d("User is in the Home Assistant config. Will not show first view of the default dashboard")
         }
     }
 

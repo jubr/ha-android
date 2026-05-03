@@ -16,7 +16,7 @@ import kotlinx.coroutines.sync.withLock
 const val MIGRATION_PREF = "migration"
 
 @VisibleForTesting
-const val MIGRATION_VERSION = 1
+const val MIGRATION_VERSION = 2
 
 private const val PREF_VER = "version"
 private const val PREF_NIGHT_MODE_THEME = "theme"
@@ -34,6 +34,8 @@ private const val PREF_PAGE_ZOOM_LEVEL = "page_zoom_level"
 private const val PREF_PINCH_TO_ZOOM_ENABLED = "pinch_to_zoom_enabled"
 private const val PREF_AUTOPLAY_VIDEO = "autoplay_video"
 private const val PREF_ALWAYS_SHOW_FIRST_VIEW_ON_APP_START = "always_show_first_view_on_app_start"
+private const val PREF_SHOW_FIRST_VIEW_ON_APP_START_AFTER_SECONDS = "show_first_view_on_app_start_after_seconds"
+private const val SHOW_FIRST_VIEW_NEVER_SECONDS = -1L
 private const val PREF_WEBVIEW_DEBUG_ENABLED = "webview_debug_enabled"
 private const val PREF_KEY_ALIAS = "key-alias"
 private const val PREF_CRASH_REPORTING_DISABLED = "crash_reporting"
@@ -88,6 +90,18 @@ private class LocalStorageWithMigration(
                         localStorage.putBoolean(PREF_WEBVIEW_DEBUG_ENABLED, it)
                     }
 
+                    localStorage.putInt(MIGRATION_PREF, 1)
+                }
+                if (currentVersion == null || currentVersion < 2) {
+                    val alwaysShowFirstView = localStorage.getBooleanOrNull(PREF_ALWAYS_SHOW_FIRST_VIEW_ON_APP_START) ?: false
+                    localStorage.putLong(
+                        PREF_SHOW_FIRST_VIEW_ON_APP_START_AFTER_SECONDS,
+                        if (alwaysShowFirstView) {
+                            0L
+                        } else {
+                            SHOW_FIRST_VIEW_NEVER_SECONDS
+                        },
+                    )
                     localStorage.putInt(MIGRATION_PREF, MIGRATION_VERSION)
                 }
                 migrationChecked.set(true)
@@ -236,11 +250,32 @@ internal class PrefsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun isAlwaysShowFirstViewOnAppStartEnabled(): Boolean {
-        return localStorage().getBoolean(PREF_ALWAYS_SHOW_FIRST_VIEW_ON_APP_START)
+        return getShowFirstViewOnAppStartDelaySeconds() != null
     }
 
     override suspend fun setAlwaysShowFirstViewOnAppStart(enabled: Boolean) {
-        localStorage().putBoolean(PREF_ALWAYS_SHOW_FIRST_VIEW_ON_APP_START, enabled)
+        setShowFirstViewOnAppStartDelaySeconds(
+            delaySeconds = if (enabled) {
+                0L
+            } else {
+                null
+            },
+        )
+    }
+
+    override suspend fun getShowFirstViewOnAppStartDelaySeconds(): Long? {
+        return when (val storedValue = localStorage().getLong(PREF_SHOW_FIRST_VIEW_ON_APP_START_AFTER_SECONDS)) {
+            null, SHOW_FIRST_VIEW_NEVER_SECONDS -> null
+            else -> storedValue
+        }
+    }
+
+    override suspend fun setShowFirstViewOnAppStartDelaySeconds(delaySeconds: Long?) {
+        localStorage().putLong(
+            PREF_SHOW_FIRST_VIEW_ON_APP_START_AFTER_SECONDS,
+            delaySeconds ?: SHOW_FIRST_VIEW_NEVER_SECONDS,
+        )
+        localStorage().putBoolean(PREF_ALWAYS_SHOW_FIRST_VIEW_ON_APP_START, delaySeconds != null)
     }
 
     override suspend fun isWebViewDebugEnabled(): Boolean {

@@ -88,6 +88,10 @@ interface PrefsRepository {
 
     suspend fun setAlwaysShowFirstViewOnAppStart(enabled: Boolean)
 
+    suspend fun getShowFirstViewOnAppStartDelaySeconds(): Long?
+
+    suspend fun setShowFirstViewOnAppStartDelaySeconds(delaySeconds: Long?)
+
     suspend fun isWebViewDebugEnabled(): Boolean
 
     suspend fun setWebViewDebugEnabled(enabled: Boolean)
